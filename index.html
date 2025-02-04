@@ -28,6 +28,8 @@
     <script type="text/javascript">
         function onTelegramAuth(user) {
             alert('تم تسجيل الدخول كـ ' + user.first_name + ' ' + user.last_name + ' (' + user.id + ')');
+    </script>
+    <script
             // عرض الـ ID في النص الجديد
             document.getElementById("telegramID").innerHTML = `ID المستخدم: ${user.id}`;
             document.getElementById("telegramAddress").innerHTML = `تم تسجيل الدخول إلى تلجرام: ID - ${user.id}`;
