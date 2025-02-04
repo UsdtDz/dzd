@@ -49,4 +49,5 @@
       color: #fff;
       border-radius: 8px;
       margin : 8px;
-}
+    }
+.telegram-link { color: #0088cc; text-decoration: none; font-weight: bold; }
