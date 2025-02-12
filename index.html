@@ -3,30 +3,171 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تجربة تسجيل الدخول عبر Telegram</title>
-</head>
-<body style="text-align: center; font-family: Arial, sans-serif; margin-top: 50px;">
+    <title>مخطط الشموع اليابانية - TradingView</title>
 
-    <h2>اختبار زر تسجيل الدخول عبر Telegram</h2>
-    
-    <!-- زر تسجيل الدخول سيظهر هنا -->
-    <div id="telegramButton"></div>
+    <!-- مكتبة TradingView Lightweight Charts -->
+    <script src="https://unpkg.com/lightweight-charts@3.4.0/dist/lightweight-charts.standalone.production.js"></script>
 
-    <!-- سكريبت تسجيل الدخول -->
-    <script async src="https://telegram.org/js/telegram-widget.js?22"
-        data-telegram-login="Tonhakimbot"
-        data-size="large"
-        data-userpic="false"
-        data-onauth="onTelegramAuth(user)"
-        data-request-access="write">
-    </script>
-
-    <script type="text/javascript">
-        function onTelegramAuth(user) {
-            alert('تم تسجيل الدخول كـ ' + user.first_name + ' ' + user.last_name + 
-                  ' (' + user.id + (user.username ? ', @' + user.username : '') + ')');
+    <style>
+        body { text-align: center; font-family: Arial, sans-serif; }
+        .input-container { margin-top: 20px; }
+        .chart-cont {
+          border: 1px solid purple;
         }
-    </script>
+    </style>
+</head>
+<body>
+    <h1>simple backtester</h1>
+    
+    <div class="chart-cont">
+      <div id="chart"></div>
+    </div>
+    
+    <div class="input-container">
+        <label for="bollinger-period">الفترة: </label>
+        <input type="number" id="bollinger-period" value="126" min="1" max="200">
+        
+        <label for="bollinger-color">اختيار اللون: </label>
+        <input type="color" id="bollinger-color" value="#00ff00">
 
+        <button id="add-bollinger">إضافة بولنجر</button>
+        <button id="reset-candles">إعادة تعيين الشموع</button>
+    </div>
+
+    <script>
+        // تحميل البيانات المحفوظة من localStorage
+        let savedData = JSON.parse(localStorage.getItem('savedData')) || {};
+        let candles = savedData.candles || [];
+        let bollingers = savedData.bollingers || [];
+        
+        ///////////////
+        
+        function calculateBollingerBands(data, period) {
+            let bands = [];
+            for (let i = period - 1; i < data.length; i++) {
+                let slice = data.slice(i - period + 1, i + 1);
+                let sum = slice.reduce((acc, candle) => acc + candle.close, 0);
+                let sma = sum / period;
+                
+                let variance = slice.reduce((acc, candle) => acc + Math.pow(candle.close - sma, 2), 0) / period;
+                let stdDev = Math.sqrt(variance);
+
+                bands.push({
+                    time: data[i].time,
+                    middle: sma,
+                    upper: sma + stdDev * 2,
+                    lower: sma - stdDev * 2
+                });
+            }
+            return bands;
+        }
+        
+        // إ///نشاء المخطط
+      
+        const chart = LightweightCharts.createChart(document.getElementById('chart'), {
+            width: window.innerWidth * 0.94,
+            height: 500,
+            layout: { backgroundColor: '#ffffff', textColor: '#000000' },
+            grid: { vertLines: { color: '#e1e1e1' }, horzLines: { color: '#e1e1e1' } },
+            timeScale: { timeVisible: true, borderColor: '#cccccc' }
+        });
+           
+        ///////////////
+        
+        const candleSeries = chart.addCandlestickSeries();
+         
+         ///////////////
+         
+        function generateRandomCandles(lastClose) {
+            const randomChange = (Math.random() * 200 - 100);
+            const open = lastClose + randomChange;
+            const close = open + (Math.random() * 200 - 100);
+            const high = Math.max(open, close) + (Math.random() * 50);
+            const low = Math.min(open, close) - (Math.random() * 50);
+            return { open, high, low, close };
+        }
+        
+        ////////////////
+        
+        if (candles.length === 0) {
+            let lastClose = 34000;
+            for (let i = 0; i < 1000; i++) {
+                const newCandle = generateRandomCandles(lastClose);
+                const time = Math.floor(Date.now() / 1000) - (1000 - i) * 60;
+                candles.push({ time, open: newCandle.open, high: newCandle.high, low: newCandle.low, close: newCandle.close });
+                lastClose = newCandle.close;
+            }
+        }
+        
+        ///////////////
+        
+        candleSeries.setData(candles);
+
+        // تحميل البولنجرات المحفوظة عند فتح الصفحة
+        bollingers.forEach(({ period, color }) => {
+            let bands = calculateBollingerBands(candles, period);
+
+            const middleLine = chart.addLineSeries({ color: color, lineWidth: 2 });
+            const upperLine = chart.addLineSeries({ color: color, lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dotted });
+            const lowerLine = chart.addLineSeries({ color: color, lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dotted });
+
+            middleLine.setData(bands.map(b => ({ time: b.time, value: b.middle })));
+            upperLine.setData(bands.map(b => ({ time: b.time, value: b.upper })));
+            lowerLine.setData(bands.map(b => ({ time: b.time, value: b.lower })));
+        });
+        
+        ///////////////////
+   
+        document.getElementById('add-bollinger').addEventListener('click', () => {
+            let period = parseInt(document.getElementById('bollinger-period').value);
+            let color = document.getElementById('bollinger-color').value;
+            
+            if (candles.length < period) {
+                alert('عدد الشموع غير كافٍ لحساب البولنجر!');
+                return;
+            }
+
+            let bands = calculateBollingerBands(candles, period);
+
+            const middleLine = chart.addLineSeries({ color: color, lineWidth: 2 });
+            const upperLine = chart.addLineSeries({ color: color, lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dotted });
+            const lowerLine = chart.addLineSeries({ color: color, lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dotted });
+
+            middleLine.setData(bands.map(b => ({ time: b.time, value: b.middle })));
+            upperLine.setData(bands.map(b => ({ time: b.time, value: b.upper })));
+            lowerLine.setData(bands.map(b => ({ time: b.time, value: b.lower })));
+
+            // حفظ بيانات البولنجر لمنع التكرار
+            bollingers.push({ period, color });
+            localStorage.setItem('savedData', JSON.stringify({ candles, bollingers }));
+
+            console.log('تمت إضافة مؤشر بولنجر بنجاح!');
+        });
+         
+         /////////////////
+         
+        document.getElementById('reset-candles').addEventListener('click', () => {
+            let lastClose = 34000;
+            candles = [];
+
+            for (let i = 0; i < 1000; i++) {
+                const newCandle = generateRandomCandles(lastClose);
+                const time = Math.floor(Date.now() / 1000) - (1000 - i) * 60;
+                candles.push({ time, open: newCandle.open, high: newCandle.high, low: newCandle.low, close: newCandle.close });
+                lastClose = newCandle.close;
+            }
+
+            // تحديث الرسم البياني
+      
+            candleSeries.setData(candles);
+
+            // مسح بيانات البولنجرات وإعادة تعيينها
+            bollingers = [];
+            localStorage.setItem('savedData', JSON.stringify({ candles, bollingers }));
+
+            console.log('تمت إعادة تعيين الشموع');
+        });
+
+    </script>
 </body>
 </html>
