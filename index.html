@@ -33,6 +33,7 @@
 
         <button id="add-bollinger">إضافة بولنجر</button>
         <button id="reset-candles">إعادة تعيين الشموع</button>
+        <button id="show-ad">عرض الإعلان</button>
     </div>
 
     <script>
@@ -168,6 +169,15 @@
 
             console.log('تمت إعادة تعيين الشموع');
         });
+            document.getElementById("show-ad").addEventListener("click", function () {
+    show_8950171().then(() => {
+        alert('You have seen the ad!');
+        // يمكنك هنا تنفيذ أي مكافأة للمستخدم بعد مشاهدة الإعلان
+    }).catch(error => {
+        console.error("Error showing ad:", error);
+    });
+});
+        
 
     </script>
 </body>
